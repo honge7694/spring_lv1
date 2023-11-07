@@ -95,6 +95,22 @@ public class BoardController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    public Long DeleteBoard(@PathVariable Long id){
+        // 해당 메모가 DB에 존재하는지 확인
+        Board board = findById(id);
+
+        if(board != null) {
+            // board 삭제
+            String sql = "DELETE FROM board WHERE id = ?";
+            jdbcTemplate.update(sql, id);
+
+            return id;
+        } else {
+            throw new IllegalArgumentException("선택된 게시글은 존재하지 않습니다.");
+        }
+    }
+
 
     private Board findById(Long id) {
         // DB 조회
