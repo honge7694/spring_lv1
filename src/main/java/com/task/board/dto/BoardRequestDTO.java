@@ -8,4 +8,5 @@ public class BoardRequestDTO {
     private String contents;
     private String username;
     private String password;
+    private String create_at;
 }

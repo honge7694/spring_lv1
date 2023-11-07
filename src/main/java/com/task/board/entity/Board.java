@@ -14,7 +14,7 @@ public class Board {
     private String contents;
     private String username;
     private String password;
-    private String created_at;
+    private String create_at;
 
     public Board(BoardRequestDTO requestDTO) {
         this.title = requestDTO.getTitle();

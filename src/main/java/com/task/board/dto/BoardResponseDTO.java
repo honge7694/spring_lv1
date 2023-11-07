@@ -19,14 +19,14 @@ public class BoardResponseDTO {
         this.contents = board.getContents();
         this.username = board.getUsername();
         this.password = board.getPassword();
-        this.create_at = board.getCreated_at();
+        this.create_at = board.getCreate_at();
     }
 
-    public BoardResponseDTO(Long id, String title, String contents, String username, String createAt) {
+    public BoardResponseDTO(Long id, String title, String contents, String username, String create_at) {
         this.id = id;
         this.title = title;
         this.contents = contents;
         this.username = username;
-        this.create_at = createAt;
+        this.create_at = create_at;
     }
 }

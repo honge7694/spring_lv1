@@ -1,9 +1,11 @@
 package com.task.board.controller;
 
 
+import com.task.board.dto.BoardInfoResponseDTO;
 import com.task.board.dto.BoardRequestDTO;
 import com.task.board.dto.BoardResponseDTO;
 import com.task.board.entity.Board;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -15,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/board")
@@ -61,6 +64,7 @@ public class BoardController {
     @GetMapping("/")
     public List<BoardResponseDTO> getBoard() {
         // DB 조회
+        // TODO: 내림차순으로 변경
         String sql = "SELECT * FROM board";
 
         return jdbcTemplate.query(sql, new RowMapper() {
@@ -77,6 +81,26 @@ public class BoardController {
             }
         });
     }
+
+    @GetMapping("/{id}")
+    public BoardInfoResponseDTO detailBoard(@PathVariable Long id){
+        String sql = "SELECT id, title, contents, username, create_at FROM board WHERE id = ?";
+        return jdbcTemplate.queryForObject(sql, new Object[]{id}, new RowMapper<BoardInfoResponseDTO>() {
+            @Override
+            public BoardInfoResponseDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
+                Long id = rs.getLong("id");
+                String title = rs.getString("title");
+                String contents = rs.getString("contents");
+                String username = rs.getString("username");
+                String create_at = rs.getString("create_at");
+
+                BoardInfoResponseDTO board = new BoardInfoResponseDTO(id, title, contents, username, create_at);
+
+                return board;
+            }
+        });
+    }
+
 
     @PutMapping("/{id}")
     public Long updateBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
