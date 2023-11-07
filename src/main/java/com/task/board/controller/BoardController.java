@@ -64,8 +64,7 @@ public class BoardController {
     @GetMapping("/")
     public List<BoardResponseDTO> getBoard() {
         // DB 조회
-        // TODO: 내림차순으로 변경
-        String sql = "SELECT * FROM board";
+        String sql = "SELECT * FROM board ORDER BY id DESC";
 
         return jdbcTemplate.query(sql, new RowMapper() {
             @Override
@@ -100,7 +99,6 @@ public class BoardController {
             }
         });
     }
-
 
     @PutMapping("/{id}")
     public Long updateBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
