@@ -78,5 +78,40 @@ public class BoardController {
         });
     }
 
+    @PutMapping("/{id}")
+    public Long updateBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
+        // 해당 게시글이 DB에 존재하는지 확인
+        Board board = findById(id);
+        if(board != null && requestDTO.getPassword().equals(board.getPassword())) {
+            // board 수정
+            String sql = "UPDATE board SET title = ?, contents = ?, username = ? WHERE id = ?";
+            jdbcTemplate.update(sql, requestDTO.getTitle(), requestDTO.getContents(), requestDTO.getUsername(), id);
 
+            return id;
+        } else {
+            System.out.println("board : " + board.getPassword());
+            System.out.println("requestDTO : " + requestDTO.getPassword());
+            throw new IllegalArgumentException("선택된 게시글은 존재하지 않습니다.");
+        }
+    }
+
+
+    private Board findById(Long id) {
+        // DB 조회
+        String sql = "SELECT * FROM board WHERE id = ?";
+
+        return jdbcTemplate.query(sql, resultSet -> {
+            if (resultSet.next()){
+                Board board = new Board();
+                board.setTitle(resultSet.getString("title"));
+                board.setContents(resultSet.getString("contents"));
+                board.setUsername(resultSet.getString("username"));
+                board.setPassword(resultSet.getString("password"));
+
+                return board;
+            } else {
+                return null;
+            }
+        }, id);
+    }
 }
