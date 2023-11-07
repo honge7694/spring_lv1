@@ -9,7 +9,6 @@ public class BoardResponseDTO {
     private String title;
     private String contents;
     private String username;
-    private String password;
     private String create_at;
 
 
@@ -18,7 +17,6 @@ public class BoardResponseDTO {
         this.title = board.getTitle();
         this.contents = board.getContents();
         this.username = board.getUsername();
-        this.password = board.getPassword();
         this.create_at = board.getCreate_at();
     }
 

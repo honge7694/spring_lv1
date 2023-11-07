@@ -1,11 +1,9 @@
 package com.task.board.controller;
 
 
-import com.task.board.dto.BoardInfoResponseDTO;
 import com.task.board.dto.BoardRequestDTO;
 import com.task.board.dto.BoardResponseDTO;
 import com.task.board.entity.Board;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -16,8 +14,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/board")
@@ -53,10 +52,16 @@ public class BoardController {
 
         // DB Insert로 받아온 기본키 확인
         Long id = keyHolder.getKey().longValue();
+        // create_at 추가
+        LocalDateTime currentDateTime = LocalDateTime.now();
+        String formattedDateTime = currentDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
         board.setId(id);
+        board.setCreate_at(formattedDateTime);
 
         // Entity -> ResponseDTO
         BoardResponseDTO boardResponseDTO = new BoardResponseDTO(board);
+        System.out.println("boardResponseDTO.getCreate_at() + boardResponseDTO.getTitle() = " + boardResponseDTO.getCreate_at() + boardResponseDTO.getTitle());
 
         return boardResponseDTO;
     }
@@ -82,18 +87,18 @@ public class BoardController {
     }
 
     @GetMapping("/{id}")
-    public BoardInfoResponseDTO detailBoard(@PathVariable Long id){
+    public BoardResponseDTO detailBoard(@PathVariable Long id){
         String sql = "SELECT id, title, contents, username, create_at FROM board WHERE id = ?";
-        return jdbcTemplate.queryForObject(sql, new Object[]{id}, new RowMapper<BoardInfoResponseDTO>() {
+        return jdbcTemplate.queryForObject(sql, new Object[]{id}, new RowMapper<BoardResponseDTO>() {
             @Override
-            public BoardInfoResponseDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
+            public BoardResponseDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
                 Long id = rs.getLong("id");
                 String title = rs.getString("title");
                 String contents = rs.getString("contents");
                 String username = rs.getString("username");
                 String create_at = rs.getString("create_at");
 
-                BoardInfoResponseDTO board = new BoardInfoResponseDTO(id, title, contents, username, create_at);
+                BoardResponseDTO board = new BoardResponseDTO(id, title, contents, username, create_at);
 
                 return board;
             }
@@ -101,16 +106,21 @@ public class BoardController {
     }
 
     @PutMapping("/{id}")
-    public Long updateBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
+    public BoardResponseDTO updateBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
         // 해당 게시글이 DB에 존재하는지 확인
         Board board = findById(id);
+
         if(board != null && requestDTO.getPassword().equals(board.getPassword())) {
             // board 수정
             String sql = "UPDATE board SET title = ?, contents = ?, username = ? WHERE id = ?";
             jdbcTemplate.update(sql, requestDTO.getTitle(), requestDTO.getContents(), requestDTO.getUsername(), id);
 
-            return id;
-        } else {
+            BoardResponseDTO boardResponseDTO = new BoardResponseDTO(board);
+
+            return boardResponseDTO;
+        } else if(!requestDTO.getPassword().equals(board.getPassword())) {
+            throw new IllegalArgumentException("선택된 게시글의 비밀번호가 일치하지 않습니다.");
+        }else {
             System.out.println("board : " + board.getPassword());
             System.out.println("requestDTO : " + requestDTO.getPassword());
             throw new IllegalArgumentException("선택된 게시글은 존재하지 않습니다.");
@@ -118,16 +128,18 @@ public class BoardController {
     }
 
     @DeleteMapping("/{id}")
-    public Long DeleteBoard(@PathVariable Long id){
+    public Long DeleteBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
         // 해당 메모가 DB에 존재하는지 확인
         Board board = findById(id);
 
-        if(board != null) {
+        if(board != null && requestDTO.getPassword().equals(board.getPassword())) {
             // board 삭제
             String sql = "DELETE FROM board WHERE id = ?";
             jdbcTemplate.update(sql, id);
 
             return id;
+        } else if(!requestDTO.getPassword().equals(board.getPassword())) {
+            throw new IllegalArgumentException("선택된 게시글의 비밀번호가 일치하지 않습니다.");
         } else {
             throw new IllegalArgumentException("선택된 게시글은 존재하지 않습니다.");
         }
@@ -141,10 +153,12 @@ public class BoardController {
         return jdbcTemplate.query(sql, resultSet -> {
             if (resultSet.next()){
                 Board board = new Board();
+                board.setId(resultSet.getLong("id"));
                 board.setTitle(resultSet.getString("title"));
                 board.setContents(resultSet.getString("contents"));
                 board.setUsername(resultSet.getString("username"));
                 board.setPassword(resultSet.getString("password"));
+                board.setCreate_at(resultSet.getString("create_at"));
 
                 return board;
             } else {
