@@ -3,167 +3,41 @@ package com.task.board.controller;
 
 import com.task.board.dto.BoardRequestDTO;
 import com.task.board.dto.BoardResponseDTO;
-import com.task.board.entity.Board;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
+import com.task.board.service.BoardService;
 import org.springframework.web.bind.annotation.*;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
 @RequestMapping("/board")
 public class BoardController {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final BoardService boardService;
 
-    public BoardController(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
+    public BoardController(BoardService boardService) { this.boardService = boardService; }
 
     @PostMapping("/")
     public BoardResponseDTO createBoard(@RequestBody BoardRequestDTO requestDTO){
-        // RequestDTO -> Entity
-        Board board = new Board(requestDTO);
-
-        // DB 저장
-        KeyHolder keyHolder = new GeneratedKeyHolder(); // 기본 키를 변환하기 위한 객체
-
-        String sql = "INSERT INTO board(title, contents, username, password) VALUES (?, ?, ?, ?)";
-        jdbcTemplate.update( con -> {
-            PreparedStatement preparedStatement = con.prepareStatement(sql,
-                    Statement.RETURN_GENERATED_KEYS);
-
-            preparedStatement.setString(1, board.getTitle());
-            preparedStatement.setString(2, board.getContents());
-            preparedStatement.setString(3, board.getUsername());
-            preparedStatement.setString(4, board.getPassword());
-
-            return preparedStatement;
-        },
-        keyHolder);
-
-        // DB Insert로 받아온 기본키 확인
-        Long id = keyHolder.getKey().longValue();
-        // create_at 추가
-        LocalDateTime currentDateTime = LocalDateTime.now();
-        String formattedDateTime = currentDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-
-        board.setId(id);
-        board.setCreate_at(formattedDateTime);
-
-        // Entity -> ResponseDTO
-        BoardResponseDTO boardResponseDTO = new BoardResponseDTO(board);
-        System.out.println("boardResponseDTO.getCreate_at() + boardResponseDTO.getTitle() = " + boardResponseDTO.getCreate_at() + boardResponseDTO.getTitle());
-
-        return boardResponseDTO;
+        return boardService.createBoard(requestDTO);
     }
 
     @GetMapping("/")
     public List<BoardResponseDTO> getBoard() {
-        // DB 조회
-        String sql = "SELECT * FROM board ORDER BY id DESC";
-
-        return jdbcTemplate.query(sql, new RowMapper() {
-            @Override
-            public BoardResponseDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
-                // SQL의 결과로 받아온 Board 데이터들을 BoardResponseDTO 타입으로 변환해줄 메서드
-                Long id = rs.getLong("id");
-                String title = rs.getString("title");
-                String contents = rs.getString("contents");
-                String username = rs.getString("username");
-                String create_at = rs.getString("create_at");
-
-                return new BoardResponseDTO(id, title, contents, username, create_at);
-            }
-        });
+        return boardService.getBoard();
     }
 
     @GetMapping("/{id}")
     public BoardResponseDTO detailBoard(@PathVariable Long id){
-        String sql = "SELECT id, title, contents, username, create_at FROM board WHERE id = ?";
-        return jdbcTemplate.queryForObject(sql, new Object[]{id}, new RowMapper<BoardResponseDTO>() {
-            @Override
-            public BoardResponseDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
-                Long id = rs.getLong("id");
-                String title = rs.getString("title");
-                String contents = rs.getString("contents");
-                String username = rs.getString("username");
-                String create_at = rs.getString("create_at");
-
-                BoardResponseDTO board = new BoardResponseDTO(id, title, contents, username, create_at);
-
-                return board;
-            }
-        });
+        return boardService.detailBoard(id);
     }
 
     @PutMapping("/{id}")
     public BoardResponseDTO updateBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
-        // 해당 게시글이 DB에 존재하는지 확인
-        Board board = findById(id);
-
-        if(board != null && requestDTO.getPassword().equals(board.getPassword())) {
-            // board 수정
-            String sql = "UPDATE board SET title = ?, contents = ?, username = ? WHERE id = ?";
-            jdbcTemplate.update(sql, requestDTO.getTitle(), requestDTO.getContents(), requestDTO.getUsername(), id);
-
-            BoardResponseDTO boardResponseDTO = new BoardResponseDTO(board);
-
-            return boardResponseDTO;
-        } else if(!requestDTO.getPassword().equals(board.getPassword())) {
-            throw new IllegalArgumentException("선택된 게시글의 비밀번호가 일치하지 않습니다.");
-        }else {
-            System.out.println("board : " + board.getPassword());
-            System.out.println("requestDTO : " + requestDTO.getPassword());
-            throw new IllegalArgumentException("선택된 게시글은 존재하지 않습니다.");
-        }
+        return boardService.updateBoard(id, requestDTO);
     }
 
     @DeleteMapping("/{id}")
-    public Long DeleteBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO){
-        // 해당 메모가 DB에 존재하는지 확인
-        Board board = findById(id);
-
-        if(board != null && requestDTO.getPassword().equals(board.getPassword())) {
-            // board 삭제
-            String sql = "DELETE FROM board WHERE id = ?";
-            jdbcTemplate.update(sql, id);
-
-            return id;
-        } else if(!requestDTO.getPassword().equals(board.getPassword())) {
-            throw new IllegalArgumentException("선택된 게시글의 비밀번호가 일치하지 않습니다.");
-        } else {
-            throw new IllegalArgumentException("선택된 게시글은 존재하지 않습니다.");
-        }
-    }
-
-
-    private Board findById(Long id) {
-        // DB 조회
-        String sql = "SELECT * FROM board WHERE id = ?";
-
-        return jdbcTemplate.query(sql, resultSet -> {
-            if (resultSet.next()){
-                Board board = new Board();
-                board.setId(resultSet.getLong("id"));
-                board.setTitle(resultSet.getString("title"));
-                board.setContents(resultSet.getString("contents"));
-                board.setUsername(resultSet.getString("username"));
-                board.setPassword(resultSet.getString("password"));
-                board.setCreate_at(resultSet.getString("create_at"));
-
-                return board;
-            } else {
-                return null;
-            }
-        }, id);
+    public Long DeleteBoard(@PathVariable Long id, @RequestBody BoardRequestDTO requestDTO) {
+        return boardService.deleteBoard(id, requestDTO);
     }
 }
